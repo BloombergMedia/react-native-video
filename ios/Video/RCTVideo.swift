@@ -443,7 +443,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         if currentTimeSecs > duration || didEnd {
             currentTimeSecs = duration
         }
-        
+
         var seekableDuration = Float(RCTVideoUtils.calculateSeekableDuration(_player))
         var playableDuration = Float(RCTVideoUtils.calculatePlayableDuration(_player, withSource: _source))
 
@@ -457,7 +457,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 if let currentContentTIme = _imaAdsManager.convertStreamTimeToContentTime(streamTime: TimeInterval(currentTimeSecs)) {
                     currentTimeSecs = currentContentTIme
                 }
-            
+
                 if let seekableContentDuration = _imaAdsManager.convertStreamTimeToContentTime(streamTime: TimeInterval(seekableDuration)) {
                     seekableDuration = Float(seekableContentDuration)
                 }
@@ -466,14 +466,14 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                     playableDuration = Float(playableContentDuration)
                 }
             #endif
-            
+
             onVideoProgress?([
                 "currentTime": currentTimeSecs,
                 "playableDuration": playableDuration,
                 "atValue": currentTime?.value ?? .zero,
                 "currentPlaybackTime": NSNumber(value: Double(currentPlaybackTime?.timeIntervalSince1970 ?? 0 * 1000)).int64Value,
                 "target": reactTag as Any,
-                "seekableDuration": seekableDuration
+                "seekableDuration": seekableDuration,
             ])
         }
     }
@@ -918,7 +918,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         }
 
         var seekTime: Float = time.floatValue
-        
+
         #if USE_GOOGLE_IMA
             if let contentTime = _imaAdsManager.convertContentTimeToStreamTime(contentTime: TimeInterval(seekTime)) {
                 seekTime = Float(contentTime)
@@ -1664,7 +1664,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                         duration = Float(contentDuration)
                     }
                 #endif
-                
+
                 self.onVideoLoad?(["duration": NSNumber(value: duration),
                                    "currentTime": NSNumber(value: currentTime),
                                    "canPlayReverse": NSNumber(value: _playerItem.canPlayReverse),
