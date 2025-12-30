@@ -68,14 +68,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             if isPictureInPictureActive() { return }
             if _enterPictureInPictureOnLeave {
                 initPictureinPicture()
-                if #available(iOS 9.0, tvOS 14.0, *) {
-                    _playerViewController?.allowsPictureInPicturePlayback = true
-                }
             } else {
                 _pip?.deinitPipController()
-                if #available(iOS 9.0, tvOS 14.0, *) {
-                    _playerViewController?.allowsPictureInPicturePlayback = false
-                }
             }
         }
     }
@@ -107,6 +101,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     #endif
 
     private var _pip: RCTPictureInPicture?
+    private var _isPictureInPictureActive = false
 
     // Events
     @objc var onVideoLoadStart: RCTDirectEventBlock?
@@ -140,19 +135,21 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
 
     @objc
     func _onPictureInPictureEnter() {
-        onPictureInPictureStatusChanged?(["isActive": NSNumber(value: true)])
+        handlePictureInPictureEnter()
     }
 
     @objc
     func _onPictureInPictureExit() {
-        onPictureInPictureStatusChanged?(["isActive": NSNumber(value: false)])
+        handlePictureInPictureExit()
     }
 
     func handlePictureInPictureEnter() {
+        _isPictureInPictureActive = true
         onPictureInPictureStatusChanged?(["isActive": NSNumber(value: true)])
     }
 
     func handlePictureInPictureExit() {
+        _isPictureInPictureActive = false
         onPictureInPictureStatusChanged?(["isActive": NSNumber(value: false)])
 
         // To continue audio playback in backgroud we need to set
@@ -177,7 +174,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
 
     func isPictureInPictureActive() -> Bool {
         #if os(iOS)
-            return _pip?._pipController?.isPictureInPictureActive == true
+            return _isPictureInPictureActive
         #else
             return false
         #endif
@@ -596,14 +593,15 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             ReactNativeVideoManager.shared.onInstanceCreated(id: instanceId, player: _player as Any)
 
             _player!.replaceCurrentItem(with: playerItem)
-
-            if #available(iOS 15.0, *) {
-                if _playInBackground {
-                    _player!.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
-                } else {
-                    _player!.audiovisualBackgroundPlaybackPolicy = .automatic
+            #if !os(tvOS) && !os(visionOS)
+                if #available(iOS 15.0, *) {
+                    if _playInBackground {
+                        _player!.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+                    } else {
+                        _player!.audiovisualBackgroundPlaybackPolicy = .automatic
+                    }
                 }
-            }
+            #endif
 
             if _showNotificationControls {
                 // We need to register player after we set current item and only for init
@@ -624,13 +622,15 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 }
             #endif
 
-            if #available(iOS 15.0, *) {
-                if _playInBackground {
-                    _player!.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
-                } else {
-                    _player!.audiovisualBackgroundPlaybackPolicy = .automatic
+            #if !os(tvOS) && !os(visionOS)
+                if #available(iOS 15.0, *) {
+                    if _playInBackground {
+                        _player!.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+                    } else {
+                        _player!.audiovisualBackgroundPlaybackPolicy = .automatic
+                    }
                 }
-            }
+            #endif
             // later we can just call "updateNowPlayingInfo:
             NowPlayingInfoCenterManager.shared.updateNowPlayingInfo()
         }
@@ -1139,14 +1139,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             _playerViewController?.modalPresentationStyle = .fullScreen
 
             // Find the nearest view controller
-            var viewController: UIViewController! = self.firstAvailableUIViewController()
-            if viewController == nil {
-                guard let keyWindow = RCTVideoUtils.getCurrentWindow() else { return }
-
-                viewController = keyWindow.rootViewController
-                if !viewController.children.isEmpty {
-                    viewController = viewController.children.last
-                }
+            var viewController: UIViewController! = RCTPresentedViewController() ?? RCTKeyWindow()?.rootViewController
+            guard viewController != nil else { return }
+            while let presented = viewController.presentedViewController {
+                viewController = presented
             }
             if viewController != nil {
                 _presentingViewController = viewController
@@ -1306,6 +1302,11 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     func setControls(_ controls: Bool) {
         if _controls != controls || ((_playerLayer == nil) && (_playerViewController == nil)) {
             _controls = controls
+            #if os(iOS)
+                if !isPictureInPictureActive() {
+                    _pip?.deinitPipController()
+                }
+            #endif
             if _controls {
                 DispatchQueue.main.async {
                     self.removePlayerLayer()
@@ -1912,15 +1913,38 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         }
     }
 
-    @objc
-    func enterPictureInPicture() {
-        if _pip?._pipController == nil {
-            initPictureinPicture()
-            if #available(iOS 9.0, tvOS 14.0, *) {
-                _playerViewController?.allowsPictureInPicturePlayback = true
+    private func findPlayerLayer(in view: UIView) -> AVPlayerLayer? {
+        if let layer = view.layer as? AVPlayerLayer {
+            return layer
+        }
+        for sublayer in view.layer.sublayers ?? [] {
+            if let playerLayer = sublayer as? AVPlayerLayer {
+                return playerLayer
             }
         }
-        _pip?.enterPictureInPicture()
+        for subview in view.subviews {
+            if let playerLayer = findPlayerLayer(in: subview) {
+                return playerLayer
+            }
+        }
+        return nil
+    }
+
+    @objc
+    func enterPictureInPicture() {
+        #if os(iOS)
+            if _pip == nil {
+                initPictureinPicture()
+            }
+
+            if _pip?._pipController == nil, let playerViewController = _playerViewController, _controls {
+                if let existingPlayerLayer = findPlayerLayer(in: playerViewController.view) {
+                    _pip?.setupPipController(existingPlayerLayer)
+                }
+            }
+
+            _pip?.enterPictureInPicture()
+        #endif
     }
 
     @objc
@@ -1929,14 +1953,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         _pip?.exitPictureInPicture()
         if _enterPictureInPictureOnLeave {
             initPictureinPicture()
-            if #available(iOS 9.0, tvOS 14.0, *) {
-                _playerViewController?.allowsPictureInPicturePlayback = true
-            }
         } else {
             _pip?.deinitPipController()
-            if #available(iOS 9.0, tvOS 14.0, *) {
-                _playerViewController?.allowsPictureInPicturePlayback = false
-            }
         }
     }
 

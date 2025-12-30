@@ -233,6 +233,7 @@ public class ReactExoplayerView extends FrameLayout implements
      */
     private boolean isSeeking = false;
     private long seekPosition = -1;
+    private boolean hasVideoEnded = false;
 
     // Props from React
     private Source source = new Source();
@@ -1441,6 +1442,7 @@ public class ReactExoplayerView extends FrameLayout implements
                     break;
                 case Player.STATE_READY:
                     text += "ready";
+                    hasVideoEnded = false;
                     eventEmitter.onReadyForDisplay.invoke();
                     onBuffering(false);
                     clearProgressMessageHandler(); // ensure there is no other message
@@ -1459,7 +1461,10 @@ public class ReactExoplayerView extends FrameLayout implements
                 case Player.STATE_ENDED:
                     text += "ended";
                     updateProgress();
-                    eventEmitter.onVideoEnd.invoke();
+                    if (!hasVideoEnded) {
+                        hasVideoEnded = true;
+                        eventEmitter.onVideoEnd.invoke();
+                    }
                     onStopPlayback();
                     setKeepScreenOn(false);
                     break;
@@ -1851,7 +1856,10 @@ public class ReactExoplayerView extends FrameLayout implements
         if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
                 && player.getRepeatMode() == Player.REPEAT_MODE_ONE) {
             updateProgress();
-            eventEmitter.onVideoEnd.invoke();
+            if (!hasVideoEnded) {
+                hasVideoEnded = true;
+                eventEmitter.onVideoEnd.invoke();
+            }
         }
     }
 
@@ -2062,6 +2070,7 @@ public class ReactExoplayerView extends FrameLayout implements
             }
 
             if (!isSourceEqual) {
+                hasVideoEnded = false;
                 playerNeedsSource = true;
                 initializePlayer();
             }
