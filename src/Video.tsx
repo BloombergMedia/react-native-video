@@ -166,6 +166,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         if (uri && uri.match(/^\//)) {
           uri = `file://${uri}`;
         }
+        // BLOOMBERG: Allow loading sources with DAI config but no URI
         if (!uri && !_source.dai) {
           console.log('Trying to load empty source');
         }
@@ -228,6 +229,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
             ? {adTagUrl: adTagUrl, adLanguage: adLanguage}
             : undefined);
 
+        // BLOOMBERG: Pass DAI configuration to native component
         const _dai = _source.dai || undefined;
 
         const _minLoadRetryCount =
@@ -251,7 +253,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
           metadata: resolvedSource.metadata,
           drm: _drm,
           ad: _ad,
-          dai: _dai,
+          dai: _dai, // BLOOMBERG: DAI config passed to native
           cmcd: _cmcd,
           textTracks: _textTracks,
           textTracksAllowChunklessPreparation:

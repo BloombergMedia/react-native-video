@@ -415,14 +415,12 @@ public class ReactExoplayerView extends FrameLayout implements
                 int width = videoFormat != null ? (isRotatedContent ? videoFormat.height : videoFormat.width) : 0;
                 int height = videoFormat != null ? (isRotatedContent ? videoFormat.width : videoFormat.height) : 0;
                 String trackId = videoFormat != null ? videoFormat.id : null;
-                // Bloomberg. https://github.com/BloombergMedia/horseshoe/pull/6013
-                // Originated in
-                // UNTRACKED. Use AVPlayer's indicatedBitrate instead of observedBitrate
-                // https://github.com/BloombergMedia/horseshoe/pull/4027
-                // It is needed because the "bitrate" argument is not the actual bitrate of the playing video,
-                // but is the video download speed instead.
+                // BLOOMBERG BEGIN
+                // Purpose: Use indicated bitrate instead of observed bitrate for accurate reporting
+                // The "bitrate" argument is the video download speed, not the actual video bitrate
                 long indicatedBitrate = videoFormat != null ? videoFormat.bitrate : bitrate;
                 eventEmitter.onVideoBandwidthUpdate.invoke(indicatedBitrate, height, width, trackId);
+                // BLOOMBERG END
             }
         }
     }
@@ -1620,13 +1618,13 @@ public class ReactExoplayerView extends FrameLayout implements
         return videoTracks;
     }
 
-    @WorkerThread
+    @WorkerThread // BLOOMBERG: Prevent lint issues in react-native-video:lintDebug
     private ArrayList<VideoTrack> getVideoTrackInfoFromManifest() {
         return this.getVideoTrackInfoFromManifest(0);
     }
 
     // We need retry count to in case where minefest request fails from poor network conditions
-    @WorkerThread
+    @WorkerThread // BLOOMBERG: Prevent lint issues in react-native-video:lintDebug
     private ArrayList<VideoTrack> getVideoTrackInfoFromManifest(int retryCount) {
         ExecutorService es = Executors.newSingleThreadExecutor();
         final DataSource dataSource = this.mediaDataSourceFactory.createDataSource();
@@ -2782,6 +2780,8 @@ public class ReactExoplayerView extends FrameLayout implements
         refreshControlsStyles();
     }
     
+    // BLOOMBERG BEGIN
+    // Purpose: DAI (Dynamic Ad Insertion) support for server-side ad insertion
     /**
      * Checks if the source is a DAI (Dynamic Ad Insertion) request.
      *
@@ -2959,7 +2959,8 @@ public class ReactExoplayerView extends FrameLayout implements
         }
         
         setSrc(backupSource);
-        
+
         return true;
     }
+    // BLOOMBERG END
 }

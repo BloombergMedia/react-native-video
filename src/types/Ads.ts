@@ -1,4 +1,6 @@
 export enum AdEvent {
+  // BLOOMBERG BEGIN - DAI-specific events
+  // Purpose: Ad events for Dynamic Ad Insertion (DAI)
   /**
    * iOS only: Fired the first time each ad break ends. Applications must reenable seeking when this occurs (only used for dynamic ad insertion).
    */
@@ -119,6 +121,7 @@ export enum AdEvent {
    * iOS only: Stream request has loaded (only used for dynamic ad insertion).
    */
   STREAM_LOADED = 'STREAM_LOADED',
+  // BLOOMBERG END
   /**
    * iOS only: Fires when the ad is tapped.
    */

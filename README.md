@@ -1,5 +1,7 @@
 [![React Native Video Component](./docs/assets/baners/rnv-banner.png)](https://thewidlarzgroup.com/?utm_source=rnv&utm_medium=readme&utm_id=banner)
 
+> **Bloomberg Fork**: This is Bloomberg's fork of react-native-video with custom modifications for DAI (Dynamic Ad Insertion) support and platform-specific enhancements. See [Bloomberg.md](./Bloomberg.md) for detailed information about all modifications.
+
 The most battle-tested open-source video player component for React Native with support for DRM, offline playback, HLS/DASH streaming, and more.
 
 

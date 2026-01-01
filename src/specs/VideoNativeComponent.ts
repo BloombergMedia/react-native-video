@@ -31,6 +31,8 @@ export type AdsConfig = Readonly<{
   adLanguage?: string;
 }>;
 
+// BLOOMBERG BEGIN
+// Purpose: DAI configuration for native bridge
 type DaiConfig = Readonly<{
   contentSourceId?: string;
   videoId?: string;
@@ -38,6 +40,7 @@ type DaiConfig = Readonly<{
   adTagParameters?: Record<string, string>;
   backupStreamUri?: string;
 }>;
+// BLOOMBERG END
 
 export type VideoSrc = Readonly<{
   uri?: string;
@@ -59,7 +62,7 @@ export type VideoSrc = Readonly<{
   textTracksAllowChunklessPreparation?: boolean; // android
   textTracks?: TextTracks;
   ad?: AdsConfig;
-  dai?: DaiConfig;
+  dai?: DaiConfig; // BLOOMBERG: DAI configuration property
   minLoadRetryCount?: Int32; // Android
   bufferConfig?: BufferConfig; // Android
 }>;

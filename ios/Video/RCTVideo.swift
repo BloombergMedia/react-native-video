@@ -63,6 +63,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     var _showNotificationControls = false
     // Buffer last bitrate value received. Initialized to -2 to ensure -1 (sometimes reported by AVPlayer) is not missed
     private var _lastBitrate = -2.0
+    // BLOOMBERG BEGIN
+    // Purpose: Only initialize PiP when needed to allow Now Playing controls
     private var _enterPictureInPictureOnLeave = false {
         didSet {
             if isPictureInPictureActive() { return }
@@ -73,6 +75,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             }
         }
     }
+    // BLOOMBERG END
 
     private let instanceId = UUID().uuidString
 
@@ -1035,11 +1038,12 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     }
 
     func applyModifiers() {
-        // Bloomberg ENG4BCMI PATCH BEGIN: Prevent hang when currentItem is nil or not ready
+        // BLOOMBERG BEGIN
+        // Purpose: Prevent hang when currentItem is nil or not ready
         if _player?.currentItem?.status != AVPlayerItem.Status.readyToPlay {
             return
         }
-        // Bloomberg ENG4BCMI PATCH END
+        // BLOOMBERG END
 
         if _muted {
             if !_controls {
@@ -1261,6 +1265,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             viewController.allowsPictureInPicturePlayback = _enterPictureInPictureOnLeave
         }
         // Bloomberg ENG4BCMA-5034 autoplay release fixes
+        // BLOOMBERG BEGIN
+        // Purpose: Make video player background transparent
         // When AVPlayerViewController (from which RCTVideoPlayerViewController inherits) is created,
         // its 'view' ('view.layer', actually) has black background color.
         // Let's make the 'view' background color to be transparent
@@ -1271,7 +1277,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         // (for example, check the 'videoInThumbnailStyle' prop).
         // FYI: On Android, the background color of the video player is transparent by default.
         viewController.view.backgroundColor = .clear
-        // End of Bloomberg ENG4BCMA-5034 autoplay release fixes
+        // BLOOMBERG END
         return viewController
     }
 
@@ -1971,6 +1977,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         ///
         /// Returns `true` if either:
         /// - VOD request: both `contentSourceId` and `videoId` are present
+        // BLOOMBERG BEGIN
+        // Purpose: Detect if source is a DAI request and provide DAI configuration helpers
         /// - Live request: `assetKey` is present
         func isDaiSource() -> Bool {
             guard let daiParams = _source?.daiParams else {
@@ -2012,7 +2020,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         func getIMAVideoDisplay() -> IMAVideoDisplay? {
             return _imaVideoDisplay
         }
+        // BLOOMBERG END
 
+        // BLOOMBERG BEGIN
+        // Purpose: Set up DAI playback by preparing player and requesting stream
         /// Sets up DAI (Dynamic Ad Insertion) by preparing the player, setting up the DAI loader, and requesting the stream.
         /// This method must be called on the main thread as it performs UI operations.
         func handleDaiSource() {
@@ -2040,7 +2051,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 _videoLoadStarted = true
             }
         }
+        // BLOOMBERG END
 
+        // BLOOMBERG BEGIN
+        // Purpose: Initialize AVPlayer for DAI playback
         /// Prepares the AVPlayer for DAI playback by initializing or resetting the player configuration.
         func preparePlayerForDai() {
             if !isSetSourceOngoing {
@@ -2071,7 +2085,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
 
             _playerObserver.player = _player
         }
+        // BLOOMBERG END
 
+        // BLOOMBERG BEGIN
+        // Purpose: Configure player item with all settings for DAI playback
         /// Sets up the player item with all item-specific configurations for DAI playback.
         ///
         /// This method should be called after `preparePlayerForDai()` when a player item becomes available.
@@ -2087,8 +2104,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 throw NSError(domain: "RCTVideo", code: -1, userInfo: [NSLocalizedDescriptionKey: "Player not initialized. Call preparePlayerForDai() first."])
             }
 
-            // Propagate metadata to the player item for lock screen/notification controls
+            // BLOOMBERG BEGIN
+            // Purpose: Ensure metadata is propagated to player item for DAI streams
             let playerItemWithMetadata = await playerItemPropegateMetadata(playerItem)
+            // BLOOMBERG END
             _playerItem = playerItemWithMetadata
             _playerObserver.playerItem = _playerItem
 
@@ -2108,18 +2127,24 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 }
             #endif
 
+            // BLOOMBERG BEGIN
+            // Purpose: Update Now Playing controls when returning from PiP
             if _showNotificationControls {
                 NowPlayingInfoCenterManager.shared.registerPlayer(player: _player)
             } else {
                 NowPlayingInfoCenterManager.shared.updateNowPlayingInfo()
             }
+            // BLOOMBERG END
 
             applyModifiers()
 
             isSetSourceOngoing = false
             applyNextSource()
         }
+        // BLOOMBERG END
 
+        // BLOOMBERG BEGIN
+        // Purpose: Handle DAI player item loading from IMA SDK
         /// Called when the IMA video display loads a player item for DAI playback.
         ///
         /// This delegate method is invoked by the IMA SDK when the DAI stream player item is ready.
@@ -2150,5 +2175,6 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                 }
             }
         }
+        // BLOOMBERG END
     }
 #endif

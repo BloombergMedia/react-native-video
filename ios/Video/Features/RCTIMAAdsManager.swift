@@ -10,12 +10,15 @@
         private var adsLoader: IMAAdsLoader!
         /* Main point of interaction with the SDK. Created by the SDK as the result of an ad request. */
         private var adsManager: IMAAdsManager!
+        // BLOOMBERG BEGIN
+        // Purpose: Store stream manager, ad container, and PiP proxy for DAI
         /* References the stream manager from the IMA DAI SDK after successfully loading the DAI stream. */
         private var streamManager: IMAStreamManager?
         /* Ad container view for DAI - stored to ensure proper z-ordering */
         private var daiAdContainerView: UIView?
         /* Picture-in-Picture proxy for DAI - stored to ensure proper Picture-in-Picture support */
         private var pipProxy: IMAPictureInPictureProxy?
+        // BLOOMBERG END
 
         init(video: RCTVideo!, isPictureInPictureActive: @escaping () -> Bool) {
             _video = video
@@ -34,6 +37,8 @@
             adsLoader.delegate = self
         }
 
+        // BLOOMBERG BEGIN
+        // Purpose: Initialize IMA SDK loader for server-side ad insertion
         func setupDaiLoader() {
             let settings = IMASettings()
             // Enable background playback for Picture-in-Picture support
@@ -41,6 +46,7 @@
             adsLoader = IMAAdsLoader(settings: settings)
             adsLoader.delegate = self
         }
+        // BLOOMBERG END
 
         func requestAds() {
             guard let _video else { return }
@@ -68,6 +74,8 @@
             }
         }
 
+        // BLOOMBERG BEGIN
+        // Purpose: Request DAI stream for VOD or Live content
         func requestDaiStream() {
             guard let _video else { return }
             // fixes RCTVideo --> RCTIMAAdsManager --> IMAAdsLoader --> IMAAdDisplayContainer --> RCTVideo memory leak.
@@ -129,6 +137,7 @@
                 adsLoader.requestStream(with: request)
             }
         }
+        // BLOOMBERG END
 
         func releaseAds() {
             // CSAI
@@ -141,15 +150,19 @@
                 adsManager.destroy()
             }
 
-            // DAI
+            // BLOOMBERG BEGIN
+            // Purpose: Clean up DAI stream manager and ad container
             if let streamManager {
                 streamManager.destroy()
                 self.streamManager = nil
 
                 daiAdContainerView = nil
             }
+            // BLOOMBERG END
         }
 
+        // BLOOMBERG BEGIN
+        // Purpose: Convert between stream time and content time for DAI
         func convertStreamTimeToContentTime(streamTime: TimeInterval) -> TimeInterval? {
             streamManager?.contentTime(forStreamTime: streamTime)
         }
@@ -157,6 +170,7 @@
         func convertContentTimeToStreamTime(contentTime: TimeInterval) -> TimeInterval? {
             streamManager?.streamTime(forContentTime: contentTime)
         }
+        // BLOOMBERG END
 
         // MARK: - Getters
 
@@ -173,8 +187,8 @@
         func adsLoader(_: IMAAdsLoader, adsLoadedWith adsLoadedData: IMAAdsLoadedData) {
             guard let _video else { return }
 
-            // Check if this is a stream manager (DAI) or ads manager (CSAI)
-            // The adsLoadedData will contain either streamManager (for DAI) or adsManager (for CSAI)
+            // BLOOMBERG BEGIN
+            // Purpose: Initialize DAI stream manager and set up ad container
             if let streamMgr = adsLoadedData.streamManager {
                 streamManager = streamMgr
                 streamManager?.delegate = self
@@ -189,6 +203,7 @@
                 // No need to extract a URL - the stream manager handles playback directly
                 // Just initialize and the player will start automatically
                 self.streamManager?.initialize(with: nil)
+            // BLOOMBERG END
             } else {
                 // CSAI: Client-side ad insertion - ads are inserted by the client app
                 self.adsManager = adsLoadedData.adsManager
@@ -308,6 +323,8 @@
             _video?.setPaused(false)
         }
 
+        // BLOOMBERG BEGIN
+        // Purpose: Handle DAI stream lifecycle events
         // MARK: - IMAStreamManagerDelegate
 
         func streamManager(_: IMAStreamManager, didReceive event: IMAAdEvent) {
@@ -350,6 +367,7 @@
                 ])
             }
         }
+        // BLOOMBERG END
 
         // MARK: - IMALinkOpenerDelegate
 
