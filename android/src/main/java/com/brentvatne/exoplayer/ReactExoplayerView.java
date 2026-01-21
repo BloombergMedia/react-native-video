@@ -2467,7 +2467,28 @@ public class ReactExoplayerView extends FrameLayout implements
         }
     }
 
+    // BLOOMBERG BEGIN
+    protected boolean isActuallyVisible() {
+        if (exoPlayerView == null) return false;
+        if (exoPlayerView.getVisibility() != View.VISIBLE) return false;
+        if (!exoPlayerView.isAttachedToWindow()) return false;
+
+        // Check if view has actual visible area on screen
+        Rect rect = new Rect();
+        boolean hasVisibleArea = exoPlayerView.getGlobalVisibleRect(rect);
+        return hasVisibleArea && rect.width() > 0 && rect.height() > 0;
+    }
+    // BLOOMBERG END
+
     protected void setIsInPictureInPicture(boolean isInPictureInPicture) {
+        // BLOOMBERG BEGIN
+        boolean isPlayerVisibleOnScreen = isActuallyVisible();
+        if (!isPlayerVisibleOnScreen) {
+            // To avoid crashes on Android with multiple views entering PiP when leaving the app,
+            // We only allow the view that is visible on screen to enter PiP mode.
+            return;
+        }
+        // BLOOMBERG END
         eventEmitter.onPictureInPictureStatusChanged.invoke(isInPictureInPicture);
 
         if (fullScreenPlayerView != null && fullScreenPlayerView.isShowing()) {
