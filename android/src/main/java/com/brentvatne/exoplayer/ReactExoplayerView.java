@@ -17,6 +17,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Rect;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -2482,10 +2483,17 @@ public class ReactExoplayerView extends FrameLayout implements
 
     protected void setIsInPictureInPicture(boolean isInPictureInPicture) {
         // BLOOMBERG BEGIN
+        if (!enterPictureInPictureOnLeave) {
+            DebugLog.v(TAG, "Skipping PiP change. Video component does not have enterPictureInPictureOnLeave prop set to true");
+            // To avoid crashes on Android with multiple views entering PiP when leaving the app,
+            // we only allow the view that has the enterPictureInPictureOnLeave flag set to true to enter PiP mode.
+            return;
+        }
         boolean isPlayerVisibleOnScreen = isActuallyVisible();
         if (!isPlayerVisibleOnScreen) {
+            DebugLog.v(TAG, "Skipping PiP change. Video component is not visible on the screen.");
             // To avoid crashes on Android with multiple views entering PiP when leaving the app,
-            // We only allow the view that is visible on screen to enter PiP mode.
+            // we only allow the view that is visible on screen to enter PiP mode.
             return;
         }
         // BLOOMBERG END
@@ -2521,9 +2529,15 @@ public class ReactExoplayerView extends FrameLayout implements
         } else {
             rootView.removeView(exoPlayerView);
             if (!rootViewChildrenOriginalVisibility.isEmpty()) {
-                for (int i = 0; i < rootView.getChildCount(); i++) {
-                    rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+                // BLOOMBERG BEGIN
+                if (rootView.getChildCount() != rootViewChildrenOriginalVisibility.size()) {
+                    DebugLog.e(TAG, "Multiple foreground Video components entered PiP mode. Make sure to render only single component with enterPictureInPictureOnLeave flag set to true. Otherwise restoring views when coming back from PiP mode might be broken.");
+                } else {
+                    for (int i = 0; i < rootView.getChildCount(); i++) {
+                        rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+                    }
                 }
+                // BLOOMBERG END
                 addView(exoPlayerView, 0, layoutParams);
                 reLayoutControls();
             }
