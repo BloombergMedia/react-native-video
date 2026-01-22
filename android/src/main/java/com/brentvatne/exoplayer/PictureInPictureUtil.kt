@@ -45,7 +45,9 @@ object PictureInPictureUtil {
             view.setIsInPictureInPicture(info.isInPictureInPictureMode)
             if (!info.isInPictureInPictureMode && activity.lifecycle.currentState == Lifecycle.State.CREATED) {
                 // when user click close button of PIP
-                if (!view.playInBackground) view.setPausedModifier(true)
+                // BLOOMBERG BEGIN
+                view.setPausedModifier(true)
+                // BLOOMBERG END
             }
         }
 
