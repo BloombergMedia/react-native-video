@@ -2531,7 +2531,11 @@ public class ReactExoplayerView extends FrameLayout implements
             if (!rootViewChildrenOriginalVisibility.isEmpty()) {
                 // BLOOMBERG BEGIN
                 if (rootView.getChildCount() != rootViewChildrenOriginalVisibility.size()) {
-                    DebugLog.e(TAG, "Multiple foreground Video components entered PiP mode. Make sure to render only single component with enterPictureInPictureOnLeave flag set to true. Otherwise restoring views when coming back from PiP mode might be broken.");
+                    int elementsToRestoreCount = Math.min(rootView.getChildCount(), rootViewChildrenOriginalVisibility.size());
+                    for (int i = 0; i < elementsToRestoreCount; i++) {
+                        rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+                    }
+                    DebugLog.w(TAG, "The rootView and rootViewChildrenOriginalVisibility sizes are out of sync. This can cause issues when exiting the PiP mode. Make sure to render only single component with enterPictureInPictureOnLeave flag set to true.");
                 } else {
                     for (int i = 0; i < rootView.getChildCount(); i++) {
                         rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
