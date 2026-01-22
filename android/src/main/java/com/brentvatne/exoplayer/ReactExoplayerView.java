@@ -2522,11 +2522,13 @@ public class ReactExoplayerView extends FrameLayout implements
                 parent.removeView(exoPlayerView);
             }
             for (int i = 0; i < rootView.getChildCount(); i++) {
+                // BLOOMBERG BEGIN
                 View child = rootView.getChildAt(i);
                 if (child != exoPlayerView) {
                     viewVisibilityMap.put(child, child.getVisibility());
                     child.setVisibility(View.GONE);
                 }
+                // BLOOMBERG END
             }
             rootView.addView(exoPlayerView, layoutParams);
         } else {
@@ -2565,6 +2567,7 @@ public class ReactExoplayerView extends FrameLayout implements
         View decorView = currentActivity.getWindow().getDecorView();
         ViewGroup rootView = decorView.findViewById(android.R.id.content);
 
+        // BLOOMBERG BEGIN
         if (!viewVisibilityMap.isEmpty()) {
             if (exoPlayerView.getParent().equals(rootView)) rootView.removeView(exoPlayerView);
             for (Map.Entry<View, Integer> entry : viewVisibilityMap.entrySet()) {
@@ -2572,6 +2575,7 @@ public class ReactExoplayerView extends FrameLayout implements
             }
             viewVisibilityMap.clear();
         }
+        // BLOOMBERG END
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && currentActivity.isInPictureInPictureMode()) {
             currentActivity.moveTaskToBack(false);
