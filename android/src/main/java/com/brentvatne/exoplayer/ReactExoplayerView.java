@@ -17,6 +17,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Rect;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -150,6 +151,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -225,8 +227,9 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean useCache = false;
     private boolean disableCache = false;
     private ControlsConfig controlsConfig = new ControlsConfig();
-    private ArrayList<Integer> rootViewChildrenOriginalVisibility = new ArrayList<Integer>();
-
+    // BLOOMBERG BEGIN
+    private final Map<View, Integer> viewVisibilityMap = new WeakHashMap<>();
+    // BLOOMBERG END
     /*
      * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
      * Then we set if to false when playback is back in onIsPlayingChanged -> true
@@ -2467,7 +2470,35 @@ public class ReactExoplayerView extends FrameLayout implements
         }
     }
 
+    // BLOOMBERG BEGIN
+    protected boolean isActuallyVisible() {
+        if (exoPlayerView == null) return false;
+        if (exoPlayerView.getVisibility() != View.VISIBLE) return false;
+        if (!exoPlayerView.isAttachedToWindow()) return false;
+
+        // Check if view has actual visible area on screen
+        Rect rect = new Rect();
+        boolean hasVisibleArea = exoPlayerView.getGlobalVisibleRect(rect);
+        return hasVisibleArea && rect.width() > 0 && rect.height() > 0;
+    }
+    // BLOOMBERG END
+
     protected void setIsInPictureInPicture(boolean isInPictureInPicture) {
+        // BLOOMBERG BEGIN
+        if (!enterPictureInPictureOnLeave) {
+            DebugLog.v(TAG, "Skipping PiP change. Video component does not have enterPictureInPictureOnLeave prop set to true");
+            // To avoid crashes on Android with multiple views entering PiP when leaving the app,
+            // we only allow the view that has the enterPictureInPictureOnLeave flag set to true to enter PiP mode.
+            return;
+        }
+        boolean isPlayerVisibleOnScreen = isActuallyVisible();
+        if (!isPlayerVisibleOnScreen) {
+            DebugLog.v(TAG, "Skipping PiP change. Video component is not visible on the screen.");
+            // To avoid crashes on Android with multiple views entering PiP when leaving the app,
+            // we only allow the view that is visible on screen to enter PiP mode.
+            return;
+        }
+        // BLOOMBERG END
         eventEmitter.onPictureInPictureStatusChanged.invoke(isInPictureInPicture);
 
         if (fullScreenPlayerView != null && fullScreenPlayerView.isShowing()) {
@@ -2491,18 +2522,25 @@ public class ReactExoplayerView extends FrameLayout implements
                 parent.removeView(exoPlayerView);
             }
             for (int i = 0; i < rootView.getChildCount(); i++) {
-                if (rootView.getChildAt(i) != exoPlayerView) {
-                    rootViewChildrenOriginalVisibility.add(rootView.getChildAt(i).getVisibility());
-                    rootView.getChildAt(i).setVisibility(View.GONE);
+                // BLOOMBERG BEGIN
+                View child = rootView.getChildAt(i);
+                if (child != exoPlayerView) {
+                    viewVisibilityMap.put(child, child.getVisibility());
+                    child.setVisibility(View.GONE);
                 }
+                // BLOOMBERG END
             }
             rootView.addView(exoPlayerView, layoutParams);
         } else {
             rootView.removeView(exoPlayerView);
-            if (!rootViewChildrenOriginalVisibility.isEmpty()) {
-                for (int i = 0; i < rootView.getChildCount(); i++) {
-                    rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+            if (!viewVisibilityMap.isEmpty()) {
+                // BLOOMBERG BEGIN
+                // Restore visibility for all views that were hidden when entering PiP
+                for (Map.Entry<View, Integer> entry : viewVisibilityMap.entrySet()) {
+                    entry.getKey().setVisibility(entry.getValue());
                 }
+                viewVisibilityMap.clear();
+                // BLOOMBERG END
                 addView(exoPlayerView, 0, layoutParams);
                 reLayoutControls();
             }
@@ -2529,13 +2567,15 @@ public class ReactExoplayerView extends FrameLayout implements
         View decorView = currentActivity.getWindow().getDecorView();
         ViewGroup rootView = decorView.findViewById(android.R.id.content);
 
-        if (!rootViewChildrenOriginalVisibility.isEmpty()) {
+        // BLOOMBERG BEGIN
+        if (!viewVisibilityMap.isEmpty()) {
             if (exoPlayerView.getParent().equals(rootView)) rootView.removeView(exoPlayerView);
-            for (int i = 0; i < rootView.getChildCount(); i++) {
-                rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+            for (Map.Entry<View, Integer> entry : viewVisibilityMap.entrySet()) {
+                entry.getKey().setVisibility(entry.getValue());
             }
-            rootViewChildrenOriginalVisibility.clear();
+            viewVisibilityMap.clear();
         }
+        // BLOOMBERG END
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && currentActivity.isInPictureInPictureMode()) {
             currentActivity.moveTaskToBack(false);
