@@ -227,8 +227,9 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean useCache = false;
     private boolean disableCache = false;
     private ControlsConfig controlsConfig = new ControlsConfig();
+    // BLOOMBERG BEGIN
     private final Map<View, Integer> viewVisibilityMap = new WeakHashMap<>();
-
+    // BLOOMBERG END
     /*
      * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
      * Then we set if to false when playback is back in onIsPlayingChanged -> true
