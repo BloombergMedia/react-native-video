@@ -151,6 +151,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -226,7 +227,7 @@ public class ReactExoplayerView extends FrameLayout implements
     private boolean useCache = false;
     private boolean disableCache = false;
     private ControlsConfig controlsConfig = new ControlsConfig();
-    private ArrayList<Integer> rootViewChildrenOriginalVisibility = new ArrayList<Integer>();
+    private final Map<View, Integer> viewVisibilityMap = new WeakHashMap<>();
 
     /*
      * When user is seeking first called is on onPositionDiscontinuity -> DISCONTINUITY_REASON_SEEK
@@ -2520,27 +2521,22 @@ public class ReactExoplayerView extends FrameLayout implements
                 parent.removeView(exoPlayerView);
             }
             for (int i = 0; i < rootView.getChildCount(); i++) {
-                if (rootView.getChildAt(i) != exoPlayerView) {
-                    rootViewChildrenOriginalVisibility.add(rootView.getChildAt(i).getVisibility());
-                    rootView.getChildAt(i).setVisibility(View.GONE);
+                View child = rootView.getChildAt(i);
+                if (child != exoPlayerView) {
+                    viewVisibilityMap.put(child, child.getVisibility());
+                    child.setVisibility(View.GONE);
                 }
             }
             rootView.addView(exoPlayerView, layoutParams);
         } else {
             rootView.removeView(exoPlayerView);
-            if (!rootViewChildrenOriginalVisibility.isEmpty()) {
+            if (!viewVisibilityMap.isEmpty()) {
                 // BLOOMBERG BEGIN
-                if (rootView.getChildCount() != rootViewChildrenOriginalVisibility.size()) {
-                    int elementsToRestoreCount = Math.min(rootView.getChildCount(), rootViewChildrenOriginalVisibility.size());
-                    for (int i = 0; i < elementsToRestoreCount; i++) {
-                        rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
-                    }
-                    DebugLog.w(TAG, "The rootView and rootViewChildrenOriginalVisibility sizes are out of sync. This can cause issues when exiting the PiP mode. Make sure to render only single component with enterPictureInPictureOnLeave flag set to true.");
-                } else {
-                    for (int i = 0; i < rootView.getChildCount(); i++) {
-                        rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
-                    }
+                // Restore visibility for all views that were hidden when entering PiP
+                for (Map.Entry<View, Integer> entry : viewVisibilityMap.entrySet()) {
+                    entry.getKey().setVisibility(entry.getValue());
                 }
+                viewVisibilityMap.clear();
                 // BLOOMBERG END
                 addView(exoPlayerView, 0, layoutParams);
                 reLayoutControls();
@@ -2568,12 +2564,12 @@ public class ReactExoplayerView extends FrameLayout implements
         View decorView = currentActivity.getWindow().getDecorView();
         ViewGroup rootView = decorView.findViewById(android.R.id.content);
 
-        if (!rootViewChildrenOriginalVisibility.isEmpty()) {
+        if (!viewVisibilityMap.isEmpty()) {
             if (exoPlayerView.getParent().equals(rootView)) rootView.removeView(exoPlayerView);
-            for (int i = 0; i < rootView.getChildCount(); i++) {
-                rootView.getChildAt(i).setVisibility(rootViewChildrenOriginalVisibility.get(i));
+            for (Map.Entry<View, Integer> entry : viewVisibilityMap.entrySet()) {
+                entry.getKey().setVisibility(entry.getValue());
             }
-            rootViewChildrenOriginalVisibility.clear();
+            viewVisibilityMap.clear();
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && currentActivity.isInPictureInPictureMode()) {
