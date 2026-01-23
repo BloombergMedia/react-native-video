@@ -1514,6 +1514,11 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         // Purpose: Clean up IMA resources to prevent multiple ads playing simultaneously
         #if USE_GOOGLE_IMA
             _imaAdsManager.releaseAds()
+            _imaVideoDisplay?.playerVideoDisplayDelegate = nil
+            _imaVideoDisplay = nil
+            _contentPlayhead = nil
+            _didRequestAds = false
+            _adPlaying = false
         #endif
         // BLOOMBERG END
 
